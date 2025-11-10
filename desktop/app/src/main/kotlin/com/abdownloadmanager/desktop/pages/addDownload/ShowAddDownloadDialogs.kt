@@ -27,6 +27,13 @@ import ir.amirab.util.desktop.PlatformAppActivator
 import ir.amirab.util.desktop.screen.applyUiScale
 import java.awt.Dimension
 
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
+
 @Composable
 fun ShowAddDownloadDialogs(component: AddDownloadDialogManager) {
     val openedAddDownloadDialogs = component.openedAddDownloadDialogs.collectAsState().value
@@ -39,6 +46,35 @@ fun ShowAddDownloadDialogs(component: AddDownloadDialogManager) {
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun EnterKeyHandler(
+    focusRequester: FocusRequester,
+    canExecute: Boolean,
+    onEnterPressed: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown && 
+                    keyEvent.key == Key.Enter &&
+                    !keyEvent.isShiftPressed && 
+                    !keyEvent.isCtrlPressed &&
+                    !keyEvent.isAltPressed &&
+                    canExecute) {
+                    onEnterPressed()
+                    true
+                } else {
+                    false
+                }
+            }
+    ) {
+        content()
     }
 }
 
@@ -65,6 +101,10 @@ private fun AddDownloadWindow(
                 size = size,
                 position = WindowPosition(Alignment.Center)
             )
+
+            val canAddToDownloads by addDownloadComponent.canAddToDownloads.collectAsState()
+            val focusRequester = remember { FocusRequester() }
+
             CustomWindow(
                 state = state,
                 onCloseRequest = onRequestClose,
@@ -77,7 +117,13 @@ private fun AddDownloadWindow(
 //                    BringToFront()
                 WindowTitle(myStringResource(Res.string.add_download))
                 WindowIcon(MyIcons.appIcon)
-                AddDownloadPage(addDownloadComponent)
+                EnterKeyHandler(
+                    focusRequester = focusRequester,
+                    canExecute = canAddToDownloads,
+                    onEnterPressed = { addDownloadComponent.onRequestDownload() }
+                ) {
+                    AddDownloadPage(addDownloadComponent)
+                }
             }
         }
 
